@@ -1,0 +1,25 @@
+run_name: phase1-baseline
+seed: 42
+
+benchmark:
+  name: mmlu_subset
+  split: dev
+  dataset_path: data/benchmarks/mmlu_subset/dev.jsonl
+  max_samples: 5
+
+providers:
+  - provider: anthropic
+    model: claude-3-5-haiku-latest
+    api_key_env: ANTHROPIC_API_KEY
+    temperature: 0.0
+    max_tokens: 256
+  - provider: openai
+    model: gpt-4o-mini
+    api_key_env: OPENAI_API_KEY
+    temperature: 0.0
+    max_tokens: 256
+  - provider: gemini
+    model: gemini-2.0-flash
+    api_key_env: GEMINI_API_KEY
+    temperature: 0.0
+    max_tokens: 256

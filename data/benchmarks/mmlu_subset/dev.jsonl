@@ -1,0 +1,5 @@
+{"sample_id":"mmlu-001","question":"Which planet is known as the Red Planet?","choices":["Venus","Mars","Jupiter","Mercury"],"answer_index":1,"category":"astronomy"}
+{"sample_id":"mmlu-002","question":"What is the derivative of x^2 with respect to x?","choices":["x","2x","x^2","2"],"answer_index":1,"category":"math"}
+{"sample_id":"mmlu-003","question":"Who wrote the novel '1984'?","choices":["Aldous Huxley","George Orwell","Ernest Hemingway","Ray Bradbury"],"answer_index":1,"category":"literature"}
+{"sample_id":"mmlu-004","question":"Which gas is most abundant in Earth's atmosphere?","choices":["Oxygen","Nitrogen","Carbon Dioxide","Argon"],"answer_index":1,"category":"science"}
+{"sample_id":"mmlu-005","question":"In computer science, what does HTTP stand for?","choices":["High Transfer Text Protocol","HyperText Transfer Protocol","HyperText Transmission Process","Host Transfer Text Process"],"answer_index":1,"category":"computer_science"}

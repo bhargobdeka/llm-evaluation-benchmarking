@@ -2,14 +2,22 @@
 
 Automation-first framework for evaluating multiple LLM APIs with reproducibility, statistical rigor, and minimal supervision.
 
-## Phase 0 Status
+## Phase Status
 
-Phase 0 is initialized with governance and automation controls:
+Phase 0 completed with governance and automation controls:
 
 - Policy config: `configs/policy.yaml`
 - Decision gates: `configs/decision_gates.yaml`
 - Governance doc: `docs/governance.md`
 - Environment template: `.env.example`
+
+Phase 1 initialized with core scaffolding:
+
+- Python package + CLI scaffold (`pyproject.toml`, `src/llm_eval/`)
+- Typed config and run manifest models (`src/llm_eval/config.py`)
+- Benchmark/provider interfaces (`src/llm_eval/benchmarks/base.py`, `src/llm_eval/providers/base.py`)
+- Curated MMLU-style subset loader and sample data (`data/benchmarks/mmlu_subset/dev.jsonl`)
+- Starter run config (`configs/run.example.yaml`)
 
 ## Autonomous Execution Model
 
@@ -34,13 +42,38 @@ Phase 0 is initialized with governance and automation controls:
 - Do not commit real keys.
 - Do not persist user keys (required for Hugging Face Space BYOK model).
 
+## CLI Quickstart
+
+Install local package in editable mode:
+
+```bash
+python3 -m pip install -e ".[dev]"
+```
+
+Validate run config:
+
+```bash
+llm-eval validate-config --config configs/run.example.yaml
+```
+
+Check key presence for configured providers:
+
+```bash
+llm-eval check-keys --config configs/run.example.yaml --env .env
+```
+
+Print current policy:
+
+```bash
+llm-eval print-policy --policy configs/policy.yaml
+```
+
 ## Next Phase
 
-Phase 1 will create:
-- package skeleton and CLI
-- typed configuration and run manifest models
-- benchmark/provider interfaces
-- first curated MMLU-style benchmark subset loader
+Phase 2 will implement the resilient evaluation execution engine:
+- retries/timeouts/rate limiting
+- deterministic run IDs and resumability
+- artifact persistence and caching
 
 ## One-Time Setup Required from User
 
