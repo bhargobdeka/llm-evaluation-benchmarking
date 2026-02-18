@@ -1,0 +1,58 @@
+version: 1
+
+execution:
+  default_mode: autonomous
+  approval_model: human_in_the_loop_for_critical_decisions_only
+  run_type: single_turn_text_only
+
+budget:
+  max_usd_per_run: 5.0
+  currency: USD
+  enforce_hard_stop: true
+  warn_at_percent: 80
+
+reliability:
+  max_parallel_requests: 3
+  request_timeout_seconds: 45
+  retry:
+    max_attempts: 3
+    backoff_seconds: [1, 2, 4]
+    retryable_status_codes: [408, 429, 500, 502, 503, 504]
+  provider_error_rate:
+    window_size_requests: 50
+    hard_stop_percent: 10
+    action: auto_stop
+
+artifacts:
+  root_dir: artifacts
+  save_inputs: true
+  save_outputs: true
+  save_errors: true
+  include_prompt_hash: true
+  include_model_config: true
+  include_timestamps: true
+  include_seed: true
+
+security:
+  byok_only: true
+  persist_user_api_keys: false
+  redact_secrets_in_logs: true
+  allowed_secret_env_vars:
+    - ANTHROPIC_API_KEY
+    - OPENAI_API_KEY
+    - GEMINI_API_KEY
+
+automation:
+  auto_resume_interrupted_runs: true
+  deduplicate_cached_prompts: true
+  skip_completed_samples: true
+  require_deterministic_run_id: true
+
+escalation:
+  trigger_on:
+    - benchmark_family_change
+    - scoring_policy_change
+    - budget_limit_change
+    - new_provider_requires_credentials
+    - public_release_decision
+  on_trigger: request_human_approval

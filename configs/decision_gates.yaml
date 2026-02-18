@@ -1,0 +1,56 @@
+version: 1
+
+decision_gates:
+  - id: DG-001
+    name: benchmark_or_scoring_change
+    severity: critical
+    requires_human_approval: true
+    description: Any change to benchmark family, sampling protocol, or scoring rubric.
+    required_payload:
+      - rationale
+      - expected_impact
+      - rollback_plan
+
+  - id: DG-002
+    name: budget_policy_change
+    severity: critical
+    requires_human_approval: true
+    description: Increase of max budget per run or modification of budget stop rules.
+    required_payload:
+      - current_budget
+      - proposed_budget
+      - cost_risk_assessment
+
+  - id: DG-003
+    name: provider_credentials_expansion
+    severity: critical
+    requires_human_approval: true
+    description: Adding a provider that requires new credentials or billing setup.
+    required_payload:
+      - provider_name
+      - credentials_needed
+      - security_notes
+
+  - id: DG-004
+    name: public_release_go_no_go
+    severity: critical
+    requires_human_approval: true
+    description: Public release milestone decision for repository or Hugging Face Space.
+    required_payload:
+      - release_notes
+      - known_risks
+      - rollback_plan
+
+autonomous_actions:
+  allowed_without_human:
+    - refactor_non_behavioral_code
+    - add_or_improve_tests
+    - bugfixes_within_existing_scope
+    - routine_benchmark_runs_within_policy
+    - report_generation
+    - retry_recoverable_failures
+  blocked_without_human:
+    - policy_threshold_changes
+    - provider_scope_expansion_requiring_new_keys
+    - scoring_rubric_changes
+    - release_publication
