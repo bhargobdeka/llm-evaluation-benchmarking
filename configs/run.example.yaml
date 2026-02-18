@@ -13,11 +13,6 @@ providers:
     api_key_env: ANTHROPIC_API_KEY
     temperature: 0.0
     max_tokens: 256
-  - provider: openai
-    model: gpt-4o-mini
-    api_key_env: OPENAI_API_KEY
-    temperature: 0.0
-    max_tokens: 256
   - provider: gemini
     model: gemini-2.0-flash
     api_key_env: GEMINI_API_KEY

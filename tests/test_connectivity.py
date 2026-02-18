@@ -38,6 +38,6 @@ def test_check_connectivity_returns_status(monkeypatch) -> None:
     monkeypatch.setattr("llm_eval.connectivity.load_env_file", lambda env_path: None)
 
     results = check_connectivity(config, env_path=".env")
-    assert len(results) == 3
+    assert len(results) == 2
     assert any(result.provider == "anthropic" and result.ok for result in results)
-    assert any(result.provider == "openai" and not result.ok for result in results)
+    assert any(result.provider == "gemini" and result.ok for result in results)

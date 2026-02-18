@@ -33,7 +33,7 @@ Phase 1 initialized with core scaffolding:
 - Max budget per run: `$5`
 - Max parallel requests: `3`
 - Hard stop if provider error rate exceeds `10%`
-- Active providers for early milestones: Anthropic, OpenAI, Google Gemini
+- Active providers for current milestones: Anthropic and Google Gemini
 - Local provider deferred in initial milestones
 
 ## Secrets and BYOK Policy
@@ -85,6 +85,12 @@ Run live provider connectivity checks:
 
 ```bash
 llm-eval check-connectivity --config configs/run.example.yaml --env .env
+```
+
+Generate reports from a completed run:
+
+```bash
+llm-eval report --run-id <run_id> --artifacts-root artifacts --reports-root reports
 ```
 
 ## One-Time Setup Required from User

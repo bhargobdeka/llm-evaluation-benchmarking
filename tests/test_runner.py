@@ -40,7 +40,7 @@ def test_runner_writes_artifacts_and_resumes(monkeypatch, tmp_path: Path) -> Non
     run_dir = tmp_path / "artifacts" / "runs" / summary_first.run_id
     assert run_dir.exists()
     results_lines_first = (run_dir / "results.jsonl").read_text(encoding="utf-8").strip().splitlines()
-    assert len(results_lines_first) == 6
+    assert len(results_lines_first) == 4
 
     summary_second = run_evaluation(
         config=config,
@@ -49,4 +49,4 @@ def test_runner_writes_artifacts_and_resumes(monkeypatch, tmp_path: Path) -> Non
     )
     assert summary_first.run_id == summary_second.run_id
     results_lines_second = (run_dir / "results.jsonl").read_text(encoding="utf-8").strip().splitlines()
-    assert len(results_lines_second) == 6
+    assert len(results_lines_second) == 4

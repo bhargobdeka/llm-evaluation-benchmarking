@@ -11,10 +11,19 @@ from llm_eval.providers.http import post_json
 class OpenAIProvider(ProviderClient):
     provider_name = "openai"
 
-    def __init__(self, model: str, api_key_env: str, timeout_seconds: int = 45):
+    def __init__(
+        self,
+        model: str,
+        api_key_env: str,
+        timeout_seconds: int = 45,
+        project_id_env: str = "OPENAI_PROJECT_ID",
+        organization_id_env: str = "OPENAI_ORG_ID",
+    ):
         self.model = model
         self.api_key_env = api_key_env
         self.timeout_seconds = timeout_seconds
+        self.project_id_env = project_id_env
+        self.organization_id_env = organization_id_env
 
     def _api_key(self) -> str:
         key = os.getenv(self.api_key_env, "")
@@ -30,10 +39,18 @@ class OpenAIProvider(ProviderClient):
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
         }
+        headers = {"Authorization": f"Bearer {self._api_key()}"}
+        project_id = os.getenv(self.project_id_env, "").strip()
+        if project_id:
+            headers["OpenAI-Project"] = project_id
+        organization_id = os.getenv(self.organization_id_env, "").strip()
+        if organization_id:
+            headers["OpenAI-Organization"] = organization_id
+
         data = post_json(
             url="https://api.openai.com/v1/chat/completions",
             payload=payload,
-            headers={"Authorization": f"Bearer {self._api_key()}"},
+            headers=headers,
             timeout_seconds=self.timeout_seconds,
         )
         text = (
