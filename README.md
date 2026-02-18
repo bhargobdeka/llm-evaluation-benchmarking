@@ -70,10 +70,22 @@ llm-eval print-policy --policy configs/policy.yaml
 
 ## Next Phase
 
-Phase 2 will implement the resilient evaluation execution engine:
-- retries/timeouts/rate limiting
+Phase 2 is in progress with resilient execution engine components:
+- retries/timeouts and provider error-rate stop guard
 - deterministic run IDs and resumability
-- artifact persistence and caching
+- artifact persistence and request-level caching
+
+Run a benchmark slice and generate artifacts:
+
+```bash
+llm-eval run --config configs/run.example.yaml --policy configs/policy.yaml
+```
+
+Run live provider connectivity checks:
+
+```bash
+llm-eval check-connectivity --config configs/run.example.yaml --env .env
+```
 
 ## One-Time Setup Required from User
 

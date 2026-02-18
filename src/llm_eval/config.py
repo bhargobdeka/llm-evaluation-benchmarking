@@ -23,6 +23,7 @@ class ReliabilityPolicy(BaseModel):
     max_parallel_requests: int = 3
     request_timeout_seconds: int = 45
     retry: RetryPolicy = Field(default_factory=RetryPolicy)
+    provider_error_rate_window_size_requests: int = 50
     provider_error_rate_hard_stop_percent: int = 10
 
 
@@ -87,7 +88,7 @@ class RunManifest(BaseModel):
     policy_snapshot: dict[str, Any]
 
 
-def _load_env_file(path: str | Path = ".env") -> None:
+def load_env_file(path: str | Path = ".env") -> None:
     env_path = Path(path)
     if not env_path.exists():
         return
@@ -129,7 +130,7 @@ def build_run_manifest(config: RunConfig) -> RunManifest:
 
 
 def resolve_provider_keys(config: RunConfig, env_path: str | Path = ".env") -> dict[str, bool]:
-    _load_env_file(env_path)
+    load_env_file(env_path)
     resolved: dict[str, bool] = {}
     for provider in config.providers:
         if not provider.api_key_env:

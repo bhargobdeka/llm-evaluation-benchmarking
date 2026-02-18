@@ -7,7 +7,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from llm_eval.connectivity import check_connectivity
 from llm_eval.config import build_run_manifest, load_run_config, resolve_provider_keys
+from llm_eval.runner import run_evaluation
 
 app = typer.Typer(help="LLM multi-model evaluation framework CLI.")
 console = Console()
@@ -101,3 +103,67 @@ def print_policy(policy_path: str = typer.Option("configs/policy.yaml", "--polic
 
     data = yaml.safe_load(Path(policy_path).read_text(encoding="utf-8")) or {}
     console.print_json(data=json.loads(json.dumps(data)))
+
+
+@app.command("run")
+def run(
+    config_path: str = typer.Option(
+        "configs/run.example.yaml", "--config", "-c", help="Path to run config YAML."
+    ),
+    policy_path: str = typer.Option(
+        "configs/policy.yaml", "--policy", help="Path to policy YAML."
+    ),
+    artifacts_root: str = typer.Option(
+        "artifacts", "--artifacts-root", help="Directory for run artifacts."
+    ),
+    env_path: str = typer.Option(".env", "--env", help="Path to environment file."),
+) -> None:
+    """Execute a benchmark run and persist artifacts."""
+    config = load_run_config(config_path)
+    summary = run_evaluation(
+        config=config,
+        policy_path=policy_path,
+        artifacts_root=artifacts_root,
+        env_path=env_path,
+    )
+    table = Table(title=f"Run Summary ({summary.run_id})")
+    table.add_column("Provider")
+    table.add_column("Attempted")
+    table.add_column("Correct")
+    table.add_column("Errors")
+    table.add_column("Accuracy")
+    for provider_name, metrics in summary.provider_metrics.items():
+        table.add_row(
+            provider_name,
+            str(metrics.get("attempted", 0)),
+            str(metrics.get("correct", 0)),
+            str(metrics.get("errors", 0)),
+            f"{metrics.get('accuracy', 0.0):.3f}",
+        )
+    console.print(table)
+    console.print(f"Artifacts written under [bold]{artifacts_root}/runs/{summary.run_id}[/bold]")
+
+
+@app.command("check-connectivity")
+def check_connectivity_command(
+    config_path: str = typer.Option(
+        "configs/run.example.yaml", "--config", "-c", help="Path to run config YAML."
+    ),
+    env_path: str = typer.Option(".env", "--env", help="Path to environment file."),
+) -> None:
+    """Execute lightweight provider calls to validate live connectivity."""
+    config = load_run_config(config_path)
+    results = check_connectivity(config=config, env_path=env_path)
+    table = Table(title="Provider Connectivity")
+    table.add_column("Provider")
+    table.add_column("Model")
+    table.add_column("Status")
+    table.add_column("Detail")
+    for result in results:
+        table.add_row(
+            result.provider,
+            result.model,
+            "PASS" if result.ok else "FAIL",
+            result.detail,
+        )
+    console.print(table)

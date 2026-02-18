@@ -70,3 +70,6 @@ venv.bak/
 # IDEs
 .idea/
 .vscode/
+
+# Runtime artifacts
+artifacts/
