@@ -27,6 +27,10 @@ class ExecutionSummary:
     provider_metrics: dict[str, dict[str, Any]]
 
 
+def _system_id(provider: str, model: str) -> str:
+    return f"{provider}:{model}"
+
+
 def _finalize_metrics(provider_metrics: dict[str, dict[str, Any]]) -> None:
     for metrics in provider_metrics.values():
         attempted = metrics["attempted"]
@@ -88,15 +92,23 @@ def run_evaluation(
     samples = list(dataset.load())
 
     completed_keys = store.load_completed_keys()
-    provider_metrics: dict[str, dict[str, Any]] = {
-        provider.provider: {"requests": 0, "errors": 0, "correct": 0, "attempted": 0}
-        for provider in config.providers
-    }
+    provider_metrics: dict[str, dict[str, Any]] = {}
+    for provider in config.providers:
+        sid = _system_id(provider.provider, provider.model)
+        provider_metrics[sid] = {
+            "provider": provider.provider,
+            "model": provider.model,
+            "requests": 0,
+            "errors": 0,
+            "correct": 0,
+            "attempted": 0,
+        }
 
     total_requests = 0
     total_errors = 0
 
     for provider_cfg in config.providers:
+        sid = _system_id(provider_cfg.provider, provider_cfg.model)
         client = build_provider_client(
             provider_config=provider_cfg,
             timeout_seconds=config.policy.reliability.request_timeout_seconds,
@@ -114,8 +126,8 @@ def run_evaluation(
             if req_key in completed_keys:
                 continue
 
-            provider_metrics[provider_cfg.provider]["requests"] += 1
-            provider_metrics[provider_cfg.provider]["attempted"] += 1
+            provider_metrics[sid]["requests"] += 1
+            provider_metrics[sid]["attempted"] += 1
             total_requests += 1
 
             cached = cache.get(req_key)
@@ -161,7 +173,7 @@ def run_evaluation(
                             ]
                             time.sleep(backoff)
                             continue
-                        provider_metrics[provider_cfg.provider]["errors"] += 1
+                        provider_metrics[sid]["errors"] += 1
                         total_errors += 1
                         store.append_error(
                             {
@@ -177,7 +189,7 @@ def run_evaluation(
                         )
                         break
                     except Exception as exc:  # noqa: BLE001
-                        provider_metrics[provider_cfg.provider]["errors"] += 1
+                        provider_metrics[sid]["errors"] += 1
                         total_errors += 1
                         store.append_error(
                             {
@@ -197,11 +209,12 @@ def run_evaluation(
             expected = _correct_letter(sample.answer_index)
             is_correct = predicted == expected
             if is_correct:
-                provider_metrics[provider_cfg.provider]["correct"] += 1
+                provider_metrics[sid]["correct"] += 1
 
             store.append_result(
                 {
                     "run_id": manifest.run_id,
+                    "system_id": sid,
                     "provider": provider_cfg.provider,
                     "model": provider_cfg.model,
                     "sample_id": sample.sample_id,
@@ -216,8 +229,8 @@ def run_evaluation(
                 }
             )
 
-            requests_for_provider = provider_metrics[provider_cfg.provider]["requests"]
-            errors_for_provider = provider_metrics[provider_cfg.provider]["errors"]
+            requests_for_provider = provider_metrics[sid]["requests"]
+            errors_for_provider = provider_metrics[sid]["errors"]
             if requests_for_provider > 0:
                 error_rate_percent = (errors_for_provider / requests_for_provider) * 100
                 if (

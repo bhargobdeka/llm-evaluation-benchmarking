@@ -22,7 +22,7 @@ def build_markdown_report(run_id: str, scored: dict[str, Any], pairwise: list[di
     lines.append("")
     lines.append("## Leaderboard")
     lines.append("")
-    lines.append("| Provider | Attempted | Correct | Accuracy | CI95 | Avg Latency (ms) | Errors |")
+    lines.append("| System | Attempted | Correct | Accuracy | CI95 | Avg Latency (ms) | Errors |")
     lines.append("|---|---:|---:|---:|---:|---:|---:|")
     for provider, metrics in _provider_table_rows(scored):
         ci = metrics.get("accuracy_ci95", {"low": 0.0, "high": 0.0})
@@ -40,7 +40,7 @@ def build_markdown_report(run_id: str, scored: dict[str, Any], pairwise: list[di
     if not pairwise:
         lines.append("No provider pairs available.")
     else:
-        lines.append("| Provider A | Provider B | Wins A | Wins B | Ties | p-value |")
+        lines.append("| System A | System B | Wins A | Wins B | Ties | p-value |")
         lines.append("|---|---|---:|---:|---:|---:|")
         for row in pairwise:
             lines.append(
@@ -97,13 +97,13 @@ def build_html_report(run_id: str, scored: dict[str, Any], pairwise: list[dict[s
         f"<p>Status: <code>{scored.get('status', 'unknown')}</code><br>"
         f"Total evaluated rows: <code>{scored.get('total_rows', 0)}</code></p>"
         "<h2>Leaderboard</h2><table><thead><tr>"
-        "<th>Provider</th><th>Attempted</th><th>Correct</th><th>Accuracy</th>"
+        "<th>System</th><th>Attempted</th><th>Correct</th><th>Accuracy</th>"
         "<th>CI95</th><th>Avg Latency (ms)</th><th>Errors</th>"
         "</tr></thead><tbody>"
         + "".join(provider_rows)
         + "</tbody></table>"
         "<h2>Pairwise Significance</h2><table><thead><tr>"
-        "<th>Provider A</th><th>Provider B</th><th>Wins A</th><th>Wins B</th><th>Ties</th><th>p-value</th>"
+        "<th>System A</th><th>System B</th><th>Wins A</th><th>Wins B</th><th>Ties</th><th>p-value</th>"
         "</tr></thead><tbody>"
         + ("".join(pair_rows) if pair_rows else "<tr><td colspan='6'>No pairs available</td></tr>")
         + "</tbody></table>"

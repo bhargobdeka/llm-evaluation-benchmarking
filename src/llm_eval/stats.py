@@ -40,7 +40,7 @@ def _binomial_two_sided_p_value(k: int, n: int, p: float = 0.5) -> float:
 def pairwise_significance(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_provider_sample: dict[str, dict[str, bool]] = defaultdict(dict)
     for row in results:
-        provider = str(row.get("provider"))
+        provider = str(row.get("system_id") or f"{row.get('provider')}:{row.get('model')}")
         sample_id = str(row.get("sample_id"))
         by_provider_sample[provider][sample_id] = bool(row.get("is_correct", False))
 

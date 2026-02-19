@@ -34,6 +34,7 @@ Phase 1 initialized with core scaffolding:
 - Max parallel requests: `3`
 - Hard stop if provider error rate exceeds `10%`
 - Active providers for current milestones: Anthropic and Google Gemini
+- Optional open-source provider set available via Groq preset config.
 - Local provider deferred in initial milestones
 
 ## Secrets and BYOK Policy
@@ -85,6 +86,12 @@ Run live provider connectivity checks:
 
 ```bash
 llm-eval check-connectivity --config configs/run.example.yaml --env .env
+```
+
+Run Groq open-source benchmark preset (Qwen + Kimi-K2 + others):
+
+```bash
+llm-eval run --config configs/run.groq.yaml --policy configs/policy.yaml --env .env
 ```
 
 Generate reports from a completed run:

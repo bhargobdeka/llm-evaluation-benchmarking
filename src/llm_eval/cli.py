@@ -127,14 +127,14 @@ def run(
         env_path=env_path,
     )
     table = Table(title=f"Run Summary ({summary.run_id})")
-    table.add_column("Provider")
+    table.add_column("System")
     table.add_column("Attempted")
     table.add_column("Correct")
     table.add_column("Errors")
     table.add_column("Accuracy")
-    for provider_name, metrics in summary.provider_metrics.items():
+    for system_id, metrics in summary.provider_metrics.items():
         table.add_row(
-            provider_name,
+            system_id,
             str(metrics.get("attempted", 0)),
             str(metrics.get("correct", 0)),
             str(metrics.get("errors", 0)),
