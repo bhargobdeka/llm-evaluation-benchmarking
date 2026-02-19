@@ -37,6 +37,7 @@ class GroqProvider(ProviderClient):
             stream=False,
         )
         text = completion.choices[0].message.content if completion.choices else ""
+        text = text or ""
         latency_ms = int((time.perf_counter() - started) * 1000)
         return InferenceResponse(
             text=text,

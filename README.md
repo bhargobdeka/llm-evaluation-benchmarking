@@ -19,6 +19,13 @@ Phase 1 initialized with core scaffolding:
 - Curated MMLU-style subset loader and sample data (`data/benchmarks/mmlu_subset/dev.jsonl`)
 - Starter run config (`configs/run.example.yaml`)
 
+Phase 5 initialized with operational hardening:
+
+- CI workflows (`.github/workflows/ci.yml`, `.github/workflows/nightly-eval.yml`)
+- Local developer automation (`Makefile`, `.pre-commit-config.yaml`)
+- Reproducibility and methodology guide (`docs/methodology.md`)
+- Nightly automation script (`scripts/run_nightly_eval.py`)
+
 ## Autonomous Execution Model
 
 - Default mode: autonomous execution.
@@ -51,6 +58,13 @@ Install local package in editable mode:
 python3 -m pip install -e ".[dev]"
 ```
 
+Install and run pre-commit hooks:
+
+```bash
+pre-commit install
+pre-commit run --all-files
+```
+
 Validate run config:
 
 ```bash
@@ -69,12 +83,13 @@ Print current policy:
 llm-eval print-policy --policy configs/policy.yaml
 ```
 
-## Next Phase
+## Current Focus
 
-Phase 2 is in progress with resilient execution engine components:
-- retries/timeouts and provider error-rate stop guard
-- deterministic run IDs and resumability
-- artifact persistence and request-level caching
+Phase 5 hardening in progress:
+- CI + nightly workflow automation
+- local quality gates (`make check`, pre-commit)
+- reproducibility/methodology documentation
+- autonomous nightly runner (`scripts/run_nightly_eval.py`)
 
 Run a benchmark slice and generate artifacts:
 
@@ -98,6 +113,18 @@ Generate reports from a completed run:
 
 ```bash
 llm-eval report --run-id <run_id> --artifacts-root artifacts --reports-root reports
+```
+
+Run local quality gates:
+
+```bash
+make check
+```
+
+Run nightly automation script locally:
+
+```bash
+make nightly
 ```
 
 ## One-Time Setup Required from User

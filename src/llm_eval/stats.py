@@ -57,13 +57,13 @@ def pairwise_significance(results: list[dict[str, Any]]) -> list[dict[str, Any]]
             wins_right = 0
             ties = 0
             for sample_id in shared_ids:
-                l = left_samples[sample_id]
-                r = right_samples[sample_id]
-                if l == r:
+                left_correct = left_samples[sample_id]
+                right_correct = right_samples[sample_id]
+                if left_correct == right_correct:
                     ties += 1
-                elif l and not r:
+                elif left_correct and not right_correct:
                     wins_left += 1
-                elif r and not l:
+                elif right_correct and not left_correct:
                     wins_right += 1
             non_ties = wins_left + wins_right
             p_value = _binomial_two_sided_p_value(max(wins_left, wins_right), non_ties)
