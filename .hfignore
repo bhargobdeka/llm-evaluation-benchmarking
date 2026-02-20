@@ -1,0 +1,9 @@
+.git/
+.venv/
+.pytest_cache/
+.cursor/
+artifacts/
+reports/
+__pycache__/
+*.pyc
+.env

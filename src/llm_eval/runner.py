@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import os
 import hashlib
 import json
 import random
 import re
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -66,213 +68,239 @@ def _correct_letter(answer_index: int) -> str:
     return chr(65 + answer_index)
 
 
+@contextmanager
+def _temporary_env(overrides: dict[str, str] | None):
+    if not overrides:
+        yield
+        return
+    snapshot = {key: os.getenv(key) for key in overrides}
+    try:
+        for key, value in overrides.items():
+            os.environ[key] = value
+        yield
+    finally:
+        for key, old_value in snapshot.items():
+            if old_value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = old_value
+
+
 def run_evaluation(
     config: RunConfig,
     policy_path: str = "configs/policy.yaml",
     artifacts_root: str = "artifacts",
     env_path: str = ".env",
+    env_overrides: dict[str, str] | None = None,
 ) -> ExecutionSummary:
     load_env_file(env_path)
-    merged_policy = merge_policy(config, policy_path=policy_path)
-    config.policy = merged_policy
-    manifest = build_run_manifest(config)
+    with _temporary_env(env_overrides):
+        merged_policy = merge_policy(config, policy_path=policy_path)
+        config.policy = merged_policy
+        manifest = build_run_manifest(config)
 
-    random.seed(config.seed)
-    store = ArtifactStore(artifacts_root=artifacts_root, run_id=manifest.run_id)
-    cache = ResponseCache(store.run_dir / "cache")
-    store.write_manifest(manifest.model_dump())
+        random.seed(config.seed)
+        store = ArtifactStore(artifacts_root=artifacts_root, run_id=manifest.run_id)
+        cache = ResponseCache(store.run_dir / "cache")
+        store.write_manifest(manifest.model_dump())
 
-    if config.benchmark.name != "mmlu_subset":
-        raise NotImplementedError("Phase 2 supports mmlu_subset only.")
+        if config.benchmark.name != "mmlu_subset":
+            raise NotImplementedError("Current runner supports mmlu_subset only.")
 
-    dataset = MMLUSubsetDataset(
-        config.benchmark.dataset_path,
-        max_samples=config.benchmark.max_samples,
-    )
-    samples = list(dataset.load())
-
-    completed_keys = store.load_completed_keys()
-    provider_metrics: dict[str, dict[str, Any]] = {}
-    for provider in config.providers:
-        sid = _system_id(provider.provider, provider.model)
-        provider_metrics[sid] = {
-            "provider": provider.provider,
-            "model": provider.model,
-            "requests": 0,
-            "errors": 0,
-            "correct": 0,
-            "attempted": 0,
-        }
-
-    total_requests = 0
-    total_errors = 0
-
-    for provider_cfg in config.providers:
-        sid = _system_id(provider_cfg.provider, provider_cfg.model)
-        client = build_provider_client(
-            provider_config=provider_cfg,
-            timeout_seconds=config.policy.reliability.request_timeout_seconds,
+        dataset = MMLUSubsetDataset(
+            config.benchmark.dataset_path,
+            max_samples=config.benchmark.max_samples,
         )
-        for sample in samples:
-            prompt = sample.prompt()
-            req_key = _request_key(
-                provider=provider_cfg.provider,
-                model=provider_cfg.model,
-                sample_id=sample.sample_id,
-                prompt=prompt,
-                temperature=provider_cfg.temperature,
-                max_tokens=provider_cfg.max_tokens,
+        samples = list(dataset.load())
+
+        completed_keys = store.load_completed_keys()
+        provider_metrics: dict[str, dict[str, Any]] = {}
+        for provider in config.providers:
+            sid = _system_id(provider.provider, provider.model)
+            provider_metrics[sid] = {
+                "provider": provider.provider,
+                "model": provider.model,
+                "requests": 0,
+                "errors": 0,
+                "correct": 0,
+                "attempted": 0,
+            }
+
+        total_requests = 0
+        total_errors = 0
+
+        for provider_cfg in config.providers:
+            sid = _system_id(provider_cfg.provider, provider_cfg.model)
+            client = build_provider_client(
+                provider_config=provider_cfg,
+                timeout_seconds=config.policy.reliability.request_timeout_seconds,
             )
-            if req_key in completed_keys:
-                continue
+            for sample in samples:
+                prompt = sample.prompt()
+                req_key = _request_key(
+                    provider=provider_cfg.provider,
+                    model=provider_cfg.model,
+                    sample_id=sample.sample_id,
+                    prompt=prompt,
+                    temperature=provider_cfg.temperature,
+                    max_tokens=provider_cfg.max_tokens,
+                )
+                if req_key in completed_keys:
+                    continue
 
-            provider_metrics[sid]["requests"] += 1
-            provider_metrics[sid]["attempted"] += 1
-            total_requests += 1
+                provider_metrics[sid]["requests"] += 1
+                provider_metrics[sid]["attempted"] += 1
+                total_requests += 1
 
-            cached = cache.get(req_key)
-            if cached is not None:
-                response_text = str(cached["text"])
-                latency_ms = int(cached.get("latency_ms") or 0)
-                usage = cached.get("usage")
-            else:
-                attempt = 0
-                response_text = ""
-                latency_ms = 0
-                usage = None
-                while True:
-                    attempt += 1
-                    try:
-                        response = client.generate(
-                            InferenceRequest(
-                                prompt=prompt,
-                                temperature=provider_cfg.temperature,
-                                max_tokens=provider_cfg.max_tokens,
+                cached = cache.get(req_key)
+                if cached is not None:
+                    response_text = str(cached["text"])
+                    latency_ms = int(cached.get("latency_ms") or 0)
+                    usage = cached.get("usage")
+                else:
+                    attempt = 0
+                    response_text = ""
+                    latency_ms = 0
+                    usage = None
+                    while True:
+                        attempt += 1
+                        try:
+                            response = client.generate(
+                                InferenceRequest(
+                                    prompt=prompt,
+                                    temperature=provider_cfg.temperature,
+                                    max_tokens=provider_cfg.max_tokens,
+                                )
                             )
+                            response_text = response.text
+                            latency_ms = response.latency_ms or 0
+                            usage = response.usage
+                            cache.set(
+                                req_key,
+                                {
+                                    "text": response_text,
+                                    "latency_ms": latency_ms,
+                                    "usage": usage,
+                                },
+                            )
+                            break
+                        except ProviderHTTPError as exc:
+                            retryable = (
+                                exc.status_code
+                                in config.policy.reliability.retry.retryable_status_codes
+                            )
+                            if (
+                                attempt < config.policy.reliability.retry.max_attempts
+                                and retryable
+                            ):
+                                backoff = config.policy.reliability.retry.backoff_seconds[
+                                    min(
+                                        attempt - 1,
+                                        len(config.policy.reliability.retry.backoff_seconds) - 1,
+                                    )
+                                ]
+                                time.sleep(backoff)
+                                continue
+                            provider_metrics[sid]["errors"] += 1
+                            total_errors += 1
+                            store.append_error(
+                                {
+                                    "run_id": manifest.run_id,
+                                    "provider": provider_cfg.provider,
+                                    "model": provider_cfg.model,
+                                    "sample_id": sample.sample_id,
+                                    "request_key": req_key,
+                                    "error_type": "ProviderHTTPError",
+                                    "error": str(exc),
+                                    "attempt": attempt,
+                                }
+                            )
+                            break
+                        except Exception as exc:  # noqa: BLE001
+                            provider_metrics[sid]["errors"] += 1
+                            total_errors += 1
+                            store.append_error(
+                                {
+                                    "run_id": manifest.run_id,
+                                    "provider": provider_cfg.provider,
+                                    "model": provider_cfg.model,
+                                    "sample_id": sample.sample_id,
+                                    "request_key": req_key,
+                                    "error_type": type(exc).__name__,
+                                    "error": str(exc),
+                                    "attempt": attempt,
+                                }
+                            )
+                            break
+
+                predicted = _extract_option_letter(response_text or "")
+                expected = _correct_letter(sample.answer_index)
+                is_correct = predicted == expected
+                if is_correct:
+                    provider_metrics[sid]["correct"] += 1
+
+                store.append_result(
+                    {
+                        "run_id": manifest.run_id,
+                        "system_id": sid,
+                        "provider": provider_cfg.provider,
+                        "model": provider_cfg.model,
+                        "sample_id": sample.sample_id,
+                        "category": sample.category,
+                        "request_key": req_key,
+                        "predicted": predicted,
+                        "expected": expected,
+                        "is_correct": is_correct,
+                        "latency_ms": latency_ms,
+                        "usage": usage,
+                        "response_text": response_text,
+                    }
+                )
+
+                requests_for_provider = provider_metrics[sid]["requests"]
+                errors_for_provider = provider_metrics[sid]["errors"]
+                if requests_for_provider > 0:
+                    error_rate_percent = (errors_for_provider / requests_for_provider) * 100
+                    if (
+                        config.policy.budget.enforce_hard_stop
+                        and requests_for_provider
+                        >= config.policy.reliability.provider_error_rate_window_size_requests
+                        and error_rate_percent
+                        > config.policy.reliability.provider_error_rate_hard_stop_percent
+                    ):
+                        _finalize_metrics(provider_metrics)
+                        summary = ExecutionSummary(
+                            run_id=manifest.run_id,
+                            total_requests=total_requests,
+                            total_errors=total_errors,
+                            provider_metrics=provider_metrics,
                         )
-                        response_text = response.text
-                        latency_ms = response.latency_ms or 0
-                        usage = response.usage
-                        cache.set(
-                            req_key,
+                        store.write_summary(
                             {
-                                "text": response_text,
-                                "latency_ms": latency_ms,
-                                "usage": usage,
-                            },
-                        )
-                        break
-                    except ProviderHTTPError as exc:
-                        retryable = (
-                            exc.status_code
-                            in config.policy.reliability.retry.retryable_status_codes
-                        )
-                        if attempt < config.policy.reliability.retry.max_attempts and retryable:
-                            backoff = config.policy.reliability.retry.backoff_seconds[
-                                min(attempt - 1, len(config.policy.reliability.retry.backoff_seconds) - 1)
-                            ]
-                            time.sleep(backoff)
-                            continue
-                        provider_metrics[sid]["errors"] += 1
-                        total_errors += 1
-                        store.append_error(
-                            {
-                                "run_id": manifest.run_id,
-                                "provider": provider_cfg.provider,
-                                "model": provider_cfg.model,
-                                "sample_id": sample.sample_id,
-                                "request_key": req_key,
-                                "error_type": "ProviderHTTPError",
-                                "error": str(exc),
-                                "attempt": attempt,
+                                "run_id": summary.run_id,
+                                "status": "stopped_due_to_error_rate",
+                                "total_requests": summary.total_requests,
+                                "total_errors": summary.total_errors,
+                                "provider_metrics": summary.provider_metrics,
                             }
                         )
-                        break
-                    except Exception as exc:  # noqa: BLE001
-                        provider_metrics[sid]["errors"] += 1
-                        total_errors += 1
-                        store.append_error(
-                            {
-                                "run_id": manifest.run_id,
-                                "provider": provider_cfg.provider,
-                                "model": provider_cfg.model,
-                                "sample_id": sample.sample_id,
-                                "request_key": req_key,
-                                "error_type": type(exc).__name__,
-                                "error": str(exc),
-                                "attempt": attempt,
-                            }
-                        )
-                        break
+                        return summary
 
-            predicted = _extract_option_letter(response_text or "")
-            expected = _correct_letter(sample.answer_index)
-            is_correct = predicted == expected
-            if is_correct:
-                provider_metrics[sid]["correct"] += 1
+        _finalize_metrics(provider_metrics)
 
-            store.append_result(
-                {
-                    "run_id": manifest.run_id,
-                    "system_id": sid,
-                    "provider": provider_cfg.provider,
-                    "model": provider_cfg.model,
-                    "sample_id": sample.sample_id,
-                    "category": sample.category,
-                    "request_key": req_key,
-                    "predicted": predicted,
-                    "expected": expected,
-                    "is_correct": is_correct,
-                    "latency_ms": latency_ms,
-                    "usage": usage,
-                    "response_text": response_text,
-                }
-            )
-
-            requests_for_provider = provider_metrics[sid]["requests"]
-            errors_for_provider = provider_metrics[sid]["errors"]
-            if requests_for_provider > 0:
-                error_rate_percent = (errors_for_provider / requests_for_provider) * 100
-                if (
-                    config.policy.budget.enforce_hard_stop
-                    and requests_for_provider
-                    >= config.policy.reliability.provider_error_rate_window_size_requests
-                    and error_rate_percent
-                    > config.policy.reliability.provider_error_rate_hard_stop_percent
-                ):
-                    _finalize_metrics(provider_metrics)
-                    summary = ExecutionSummary(
-                        run_id=manifest.run_id,
-                        total_requests=total_requests,
-                        total_errors=total_errors,
-                        provider_metrics=provider_metrics,
-                    )
-                    store.write_summary(
-                        {
-                            "run_id": summary.run_id,
-                            "status": "stopped_due_to_error_rate",
-                            "total_requests": summary.total_requests,
-                            "total_errors": summary.total_errors,
-                            "provider_metrics": summary.provider_metrics,
-                        }
-                    )
-                    return summary
-
-    _finalize_metrics(provider_metrics)
-
-    summary = ExecutionSummary(
-        run_id=manifest.run_id,
-        total_requests=total_requests,
-        total_errors=total_errors,
-        provider_metrics=provider_metrics,
-    )
-    store.write_summary(
-        {
-            "run_id": summary.run_id,
-            "status": "completed",
-            "total_requests": summary.total_requests,
-            "total_errors": summary.total_errors,
-            "provider_metrics": summary.provider_metrics,
-        }
-    )
-    return summary
+        summary = ExecutionSummary(
+            run_id=manifest.run_id,
+            total_requests=total_requests,
+            total_errors=total_errors,
+            provider_metrics=provider_metrics,
+        )
+        store.write_summary(
+            {
+                "run_id": summary.run_id,
+                "status": "completed",
+                "total_requests": summary.total_requests,
+                "total_errors": summary.total_errors,
+                "provider_metrics": summary.provider_metrics,
+            }
+        )
+        return summary

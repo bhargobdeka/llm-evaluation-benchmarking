@@ -1,3 +1,14 @@
+---
+title: LLM Eval Framework
+emoji: 📊
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # LLM Multi-Model Evaluation Framework
 
 Automation-first framework for evaluating multiple LLM APIs with reproducibility, statistical rigor, and minimal supervision.
@@ -25,6 +36,14 @@ Phase 5 initialized with operational hardening:
 - Local developer automation (`Makefile`, `.pre-commit-config.yaml`)
 - Reproducibility and methodology guide (`docs/methodology.md`)
 - Nightly automation script (`scripts/run_nightly_eval.py`)
+
+Phase 6 initialized with Hugging Face Spaces deployment assets:
+
+- Gradio app entrypoint (`app.py`)
+- BYOK app UI modules (`src/llm_eval/ui/`)
+- Spaces requirements (`requirements.txt`)
+- Publish helper (`scripts/publish_hf_space.py`)
+- Deployment guide (`docs/deployment_hf_spaces.md`)
 
 ## Autonomous Execution Model
 
@@ -125,6 +144,12 @@ Run nightly automation script locally:
 
 ```bash
 make nightly
+```
+
+Launch the Space app locally:
+
+```bash
+.venv/bin/python app.py
 ```
 
 ## One-Time Setup Required from User
